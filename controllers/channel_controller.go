@@ -388,10 +388,6 @@ func EditChannel(w http.ResponseWriter, r *http.Request) {
 	channel.Type = channelType
 	channel.ChannelId = channelId
 
-	fmt.Println("------------")
-	fmt.Println(channel)
-	fmt.Println("-------------")
-
 	helpers.Info.Println(transactionId + ": successfully received channel going to validate to the stripe service")
 
 	stripeClient := clients.StripeClient{Host: "http://localhost:8080/channels/payments/stripe/validate_credentials",
