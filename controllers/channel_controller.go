@@ -263,3 +263,177 @@ func DeleteChannelById(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 	return
 }
+
+func FetchChannelById(w http.ResponseWriter, r *http.Request) {
+
+	helpers.Init(os.Stderr, os.Stdout, os.Stdout, os.Stderr)
+
+	helpers.Info.Println("new request to fetch channel by id")
+
+	transactionId := r.Header.Get("x-transactionid")
+	userId := r.Header.Get("x-user-uuid")
+
+	if status, response := helpers.ValidateUserFromHeader(transactionId, userId); status {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	params := mux.Vars(r)
+	company_id := params["company_id"]
+	channelType := params["type"]
+	channelUuid := params["channel_uuid"]
+
+	if status, response, statusCode := helpers.ValidateCompany(transactionId, company_id, userId); status {
+		w.WriteHeader(statusCode)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if _, ok := models.Types[channelType]; len(channelType) <= 0 || !ok {
+		helpers.Info.Println("abort transaction because of wrong channel type: " + channelType)
+		w.WriteHeader(400)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 400, Message: "you have to submit the channel type as url param",
+			TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	channel := models.Channels{}
+
+	if err := DbConn.Where("company_id = ? AND type = ? AND channel_uuid = ?", company_id, channelType, channelUuid).Find(&channel).Error; err != nil {
+		helpers.Info.Println(transactionId + ": not possible to query for channel")
+		helpers.Info.Println(err)
+		w.WriteHeader(404)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 404, Message: "channel does not exist", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	helpers.Info.Println(transactionId + ": successfully fetched channel")
+	basicResponse := api.BasicResponse{Status: "OK", StatusCode: 200,
+		Message: "successfully deleted channel", TransactionId: transactionId}
+
+	response := api.SingleChannel{Meta:basicResponse, Channel:channel}
+
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(response)
+	return
+}
+
+func EditChannel(w http.ResponseWriter, r *http.Request) {
+
+	helpers.Init(os.Stderr, os.Stdout, os.Stdout, os.Stderr)
+
+	helpers.Info.Println("new request to edit a channel")
+
+	transactionId := r.Header.Get("x-transactionid")
+	userId := r.Header.Get("x-user-uuid")
+
+	if status, response := helpers.ValidateUserFromHeader(transactionId, userId); status {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	params := mux.Vars(r)
+	company_id := params["company_id"]
+	channelType := params["type"]
+	channelId := params["channel"]
+	channelUuid := params["channel_uuid"]
+
+	if status, response, statusCode := helpers.ValidateCompany(transactionId, company_id, userId); status {
+		w.WriteHeader(statusCode)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if _, ok := models.Types[channelType]; len(channelType) <= 0 || !ok {
+		helpers.Info.Println("abort transaction because of wrong channel type: " + channelType)
+		w.WriteHeader(400)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 400, Message: "you have to submit the channel type as url param",
+			TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if !helpers.StringInSlice(channelId, models.Types[channelType]) {
+		helpers.Info.Println("abort transaction because channel id is not valid")
+		w.WriteHeader(400)
+		response := api.BasicResponse{Status: "OK", StatusCode: 400, Message: "channel id does not exist", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	helpers.Info.Println(transactionId + ": channel is valid and can be created... continue")
+
+	var channel models.Channels
+	body, _ := ioutil.ReadAll(r.Body)
+
+	err := json.Unmarshal(body, &channel)
+
+	if err != nil {
+		helpers.Info.Println(transactionId + ": not possible to parse channel in post body")
+		helpers.Info.Println(err)
+		w.WriteHeader(400)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 400,
+			Message: "please submit a valid channel object", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	helpers.Info.Println("request to create new Channel for " + channelType + "and " + channelId)
+
+	channel.CompanyId = company_id
+	channel.Type = channelType
+	channel.ChannelId = channelId
+
+	fmt.Println("------------")
+	fmt.Println(channel)
+	fmt.Println("-------------")
+
+	helpers.Info.Println(transactionId + ": successfully received channel going to validate to the stripe service")
+
+	stripeClient := clients.StripeClient{Host: "http://localhost:8080/channels/payments/stripe/validate_credentials",
+		ApiKey: channel.Key}
+	success, err, statusCode := clients.ValidateStripeCredentials(stripeClient)
+
+	if !success || err != nil {
+		helpers.Info.Println("error with strip client communication because of status " + strconv.Itoa(statusCode))
+		w.WriteHeader(statusCode)
+		response := api.BasicResponse{StatusCode: statusCode, Status: "ERROR",
+			Message: "invalid response from stripe handler", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	existingChannel := models.Channels{}
+
+	if err := DbConn.Where("company_id = ? AND type = ? AND channel_uuid = ?", company_id, channelType, channelUuid).Find(&existingChannel).Error; err != nil {
+		helpers.Info.Println(transactionId + ": not possible to query for channel")
+		helpers.Info.Println(err)
+		w.WriteHeader(404)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 404, Message: "channel does not exist", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	existingChannel.ChannelId = channel.ChannelId
+	existingChannel.Name = channel.Name
+	existingChannel.Key = channel.Key
+
+	if err := DbConn.Save(&existingChannel).Error; err != nil {
+		helpers.Info.Println(transactionId + ": error during saving transaction in database")
+		helpers.Info.Println(err)
+		w.WriteHeader(500)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 500, Message: "not possible to update channel", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := api.BasicResponse{Status: "OK", StatusCode: 200,
+		Message: "successfully updated channel", TransactionId: transactionId}
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(response)
+	return
+}
