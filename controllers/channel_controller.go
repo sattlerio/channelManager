@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"channelManager/clients"
 	"strconv"
+	"github.com/rs/xid"
 )
 
 var DbConn *gorm.DB
@@ -115,6 +116,7 @@ func CreateNewChannel(w http.ResponseWriter, r *http.Request) {
 	channel.CompanyId = company_id
 	channel.Type = channelType
 	channel.ChannelId = channelId
+	channel.ChannelUuid = xid.New().String()
 
 	fmt.Println(channel)
 
@@ -146,6 +148,53 @@ func CreateNewChannel(w http.ResponseWriter, r *http.Request) {
 
 	response := api.BasicResponse{Status:"OK", StatusCode:200,
 		Message:"successfully created channel", TransactionId:transactionId}
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(response)
+	return
+}
+
+func FetchAllChannelsFromCompany(w http.ResponseWriter, r *http.Request) {
+
+	helpers.Init(os.Stderr, os.Stdout, os.Stdout, os.Stderr)
+
+	helpers.Info.Println("new request to fetch all channels")
+
+	transactionId := r.Header.Get("x-transactionid")
+	userId := r.Header.Get("x-user-uuid")
+
+	if status, response := helpers.ValidateUserFromHeader(transactionId, userId); status {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	params := mux.Vars(r)
+	company_id := params["company_id"]
+	channelType := params["type"]
+
+	if status, response, statusCode := helpers.ValidateCompany(transactionId, company_id, userId); status {
+		w.WriteHeader(statusCode)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if _, ok := models.Types[channelType]; len(channelType) <= 0 || !ok {
+		helpers.Info.Println("abort transaction because of wrong channel type: " + channelType)
+		w.WriteHeader(400)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 400, Message: "you have to submit the channel type as url param",
+			TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	channels := []models.Channels{}
+
+	DbConn.Where("company_id = ? AND type = ?", company_id, channelType).Find(&channels)
+
+	metaResponse := api.BasicResponse{StatusCode:200, Status:"OK",
+		Message:"", TransactionId:transactionId}
+	response := api.MultipleChannels{Meta:metaResponse, Channels:channels}
+
 	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(response)
 	return

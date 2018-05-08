@@ -42,6 +42,7 @@ func main() {
 	router.HandleFunc("/ping", controllers.PingController).Methods("GET")
 	router.HandleFunc("/types/{company_id}", controllers.FetchAllChannels).Methods("GET")
 	router.HandleFunc("/create/{type}/{channel}/{company_id}", controllers.CreateNewChannel).Methods("POST")
+	router.HandleFunc("/fetch/{type}/{company_id}", controllers.FetchAllChannelsFromCompany).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":11000", router))
 }

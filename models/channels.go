@@ -16,7 +16,7 @@ type Channels struct {
 
 	Name 		string 		`json:"name" gorm:"size:250; not null"`
 	CompanyId 	string 		`gorm:"size:250; not null" json:"company_id"`
-	ChannelUuid string		`gorm:"size:250; unique; not null" json:"channel_id"`
+	ChannelUuid string		`gorm:"size:250; unique; not null" json:"channel_uuid"`
 
 	Type 		string		`gorm:"size:250; not null" json:"type"`
 
@@ -24,4 +24,6 @@ type Channels struct {
 	PrivateKey 	ChannelId	`json:"private_key" gorm:"size:250; not null"`
 
 	ChannelId 	string		`gorm:"size:250; not null" json:"channel_id"`
+
+	Sandbox 	bool		`sql:"default:false" json:"sandbox" gorm:"not null"`
 }
