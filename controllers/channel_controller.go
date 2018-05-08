@@ -141,13 +141,13 @@ func CreateNewChannel(w http.ResponseWriter, r *http.Request) {
 		helpers.Warning.Println(transactionId + ": error with database connection")
 		w.WriteHeader(500)
 		response := api.BasicResponse{StatusCode: statusCode, Status: "ERROR",
-			Message:"not possible to write into db", TransactionId:transactionId}
+			Message: "not possible to write into db", TransactionId: transactionId}
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	response := api.BasicResponse{Status:"OK", StatusCode:200,
-		Message:"successfully created channel", TransactionId:transactionId}
+	response := api.BasicResponse{Status: "OK", StatusCode: 200,
+		Message: "successfully created channel", TransactionId: transactionId}
 	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(response)
 	return
@@ -191,9 +191,73 @@ func FetchAllChannelsFromCompany(w http.ResponseWriter, r *http.Request) {
 
 	DbConn.Where("company_id = ? AND type = ?", company_id, channelType).Find(&channels)
 
-	metaResponse := api.BasicResponse{StatusCode:200, Status:"OK",
-		Message:"", TransactionId:transactionId}
-	response := api.MultipleChannels{Meta:metaResponse, Channels:channels}
+	metaResponse := api.BasicResponse{StatusCode: 200, Status: "OK",
+		Message: "", TransactionId: transactionId}
+	response := api.MultipleChannels{Meta: metaResponse, Channels: channels}
+
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(response)
+	return
+}
+
+func DeleteChannelById(w http.ResponseWriter, r *http.Request) {
+
+	helpers.Init(os.Stderr, os.Stdout, os.Stdout, os.Stderr)
+
+	helpers.Info.Println("new request to fetch all channels")
+
+	transactionId := r.Header.Get("x-transactionid")
+	userId := r.Header.Get("x-user-uuid")
+
+	if status, response := helpers.ValidateUserFromHeader(transactionId, userId); status {
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	params := mux.Vars(r)
+	company_id := params["company_id"]
+	channelType := params["type"]
+	channelUuid := params["channel_uuid"]
+
+	if status, response, statusCode := helpers.ValidateCompany(transactionId, company_id, userId); status {
+		w.WriteHeader(statusCode)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if _, ok := models.Types[channelType]; len(channelType) <= 0 || !ok {
+		helpers.Info.Println("abort transaction because of wrong channel type: " + channelType)
+		w.WriteHeader(400)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 400, Message: "you have to submit the channel type as url param",
+			TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	channel := models.Channels{}
+
+	if err := DbConn.Where("company_id = ? AND type = ? AND channel_uuid = ?", company_id, channelType, channelUuid).Find(&channel).Error; err != nil {
+		helpers.Info.Println(transactionId + ": not possible to query for channel")
+		helpers.Info.Println(err)
+		w.WriteHeader(404)
+		response := api.BasicResponse{Status: "ERROR", StatusCode: 404, Message: "channel does not exist", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if err := DbConn.Delete(&channel).Error; err != nil {
+		helpers.Info.Println(transactionId + ": internal error, not able to delete channel")
+		helpers.Info.Println(err)
+		w.WriteHeader(500)
+		response := api.BasicResponse{StatusCode: 500, Status: "ERROR", Message: "internal server error", TransactionId: transactionId}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	helpers.Info.Println(transactionId + ": successfully deleted channel")
+	response := api.BasicResponse{Status: "OK", StatusCode: 200,
+		Message: "successfully deleted channel", TransactionId: transactionId}
 
 	w.WriteHeader(200)
 	json.NewEncoder(w).Encode(response)

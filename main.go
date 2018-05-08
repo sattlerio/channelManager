@@ -43,6 +43,7 @@ func main() {
 	router.HandleFunc("/types/{company_id}", controllers.FetchAllChannels).Methods("GET")
 	router.HandleFunc("/create/{type}/{channel}/{company_id}", controllers.CreateNewChannel).Methods("POST")
 	router.HandleFunc("/fetch/{type}/{company_id}", controllers.FetchAllChannelsFromCompany).Methods("GET")
+	router.HandleFunc("/delete/{type}/{company_id}/{channel_uuid}", controllers.DeleteChannelById).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":11000", router))
 }
