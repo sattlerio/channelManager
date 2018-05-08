@@ -5,6 +5,7 @@ import (
 	"channelManager/api"
 	"os"
 	"channelManager/clients"
+	"strings"
 )
 
 func ValidateUserFromHeader(transactionId string, userId string) (bool, api.BasicResponse) {
@@ -50,4 +51,13 @@ func ValidateCompany(transactionId string, companyId string, userId string) (boo
 	}
 
 	return false, response, 0
+}
+
+func StringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if strings.ToLower(b) == strings.ToLower(a) {
+			return true
+		}
+	}
+	return false
 }
