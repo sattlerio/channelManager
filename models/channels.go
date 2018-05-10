@@ -4,11 +4,8 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type ChannelId 	 string
-
-
 var Types = map[string][]string {
-	"payment": []string{"Stripe"},
+	"payment": []string{"Stripe", "Braintree"},
 }
 
 type Channels struct {
@@ -20,8 +17,9 @@ type Channels struct {
 
 	Type 		string		`gorm:"size:250; not null" json:"type"`
 
+	MerchantId  string 		`gorm:"size:250" json:"merchant_id"`
 	Key 		string 		`gorm:"size:250; not null" json:"key"`
-	PrivateKey 	ChannelId	`json:"private_key" gorm:"size:250; not null"`
+	PrivateKey 	string  	`json:"private_key" gorm:"size:250; not null"`
 
 	ChannelId 	string		`gorm:"size:250; not null" json:"channel_id"`
 

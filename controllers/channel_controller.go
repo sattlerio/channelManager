@@ -120,17 +120,35 @@ func CreateNewChannel(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(channel)
 
-	helpers.Info.Println(transactionId + ": successfully received channel going to validate to the stripe service")
+	helpers.Info.Println(transactionId + ": successfully received channel going to validate to the payment service")
 
-	stripeClient := clients.StripeClient{Host: "http://localhost:8080/channels/payments/stripe/validate_credentials",
-		ApiKey: channel.Key}
-	success, err, statusCode := clients.ValidateStripeCredentials(stripeClient)
+	var (
+		success bool = false
+		statusCode int = 0
+	)
+
+	switch channelId {
+	case "stripe":
+		stripeClient := clients.StripeClient{Host: "http://localhost:8080/channels/payments/stripe/validate_credentials",
+			ApiKey: channel.Key}
+		success, err, statusCode = clients.ValidateStripeCredentials(stripeClient)
+	case "braintree":
+		helpers.Info.Println(transactionId + ": going to validate braintree credentials")
+		braintreeClient := clients.BraintreeClient{
+			Host:"http://localhost:8080/channels/payments/braintree/validate-credentials",
+			PublicKey:channel.Key,
+			PrivateKey:channel.PrivateKey,
+			MerchantId:channel.MerchantId,
+			Sandbox:channel.Sandbox,
+		}
+		success, err, statusCode = clients.ValidateBraintreeCredentials(braintreeClient)
+	}
 
 	if !success || err != nil {
-		helpers.Info.Println("error with strip client communication because of status " + strconv.Itoa(statusCode))
+		helpers.Info.Println("error with payment client communication because of status " + strconv.Itoa(statusCode))
 		w.WriteHeader(statusCode)
 		response := api.BasicResponse{StatusCode: statusCode, Status: "ERROR",
-			Message: "invalid response from stripe handler", TransactionId: transactionId}
+			Message: "invalid response from payment service handler", TransactionId: transactionId}
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -390,9 +408,27 @@ func EditChannel(w http.ResponseWriter, r *http.Request) {
 
 	helpers.Info.Println(transactionId + ": successfully received channel going to validate to the stripe service")
 
-	stripeClient := clients.StripeClient{Host: "http://localhost:8080/channels/payments/stripe/validate_credentials",
-		ApiKey: channel.Key}
-	success, err, statusCode := clients.ValidateStripeCredentials(stripeClient)
+	var (
+		success bool = false
+		statusCode int = 0
+	)
+
+	switch channelId {
+	case "stripe":
+		stripeClient := clients.StripeClient{Host: "http://localhost:8080/channels/payments/stripe/validate_credentials",
+			ApiKey: channel.Key}
+		success, err, statusCode = clients.ValidateStripeCredentials(stripeClient)
+	case "braintree":
+		helpers.Info.Println(transactionId + ": going to validate braintree credentials")
+		braintreeClient := clients.BraintreeClient{
+			Host:"http://localhost:8080/channels/payments/braintree/validate-credentials",
+			PublicKey:channel.Key,
+			PrivateKey:channel.PrivateKey,
+			MerchantId:channel.MerchantId,
+			Sandbox:channel.Sandbox,
+		}
+		success, err, statusCode = clients.ValidateBraintreeCredentials(braintreeClient)
+	}
 
 	if !success || err != nil {
 		helpers.Info.Println("error with strip client communication because of status " + strconv.Itoa(statusCode))
