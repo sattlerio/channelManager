@@ -1,6 +1,6 @@
 package api
 
-import "channelManager/models"
+import "channelManager.sattler.io/models"
 
 type MultipleChannels struct {
 	Meta		BasicResponse		`json:"info"`

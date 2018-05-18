@@ -7,9 +7,9 @@ import (
 	"log"
 	"net/http"
 	_ "github.com/bmizerany/pq"
-	"channelManager/helpers"
-	"channelManager/models"
-	"channelManager/controllers"
+	"channelManager.sattler.io/helpers"
+	"channelManager.sattler.io/models"
+	"channelManager.sattler.io/controllers"
 )
 
 var db *gorm.DB
@@ -29,7 +29,7 @@ func main() {
 
 	if err != nil {
 		helpers.Error.Println(err)
-		helpers.Error.Println("not possible to connect to db, going to die now.... UAAAAAAAAAAAAH!!!!")
+		helpers.Error.Println("not possible to connedssdzkdlksact to db, going to die now.... UAAAAAAAAAAAAH!!!!")
 		panic("failed to connect database")
 	}
 
@@ -47,5 +47,5 @@ func main() {
 	router.HandleFunc("/get/{type}/{company_id}/{channel_uuid}", controllers.FetchChannelById).Methods("GET")
 	router.HandleFunc("/edit/{type}/{channel}/{company_id}/{channel_uuid}", controllers.EditChannel).Methods("PUT")
 
-	log.Fatal(http.ListenAndServe(":11000", router))
+	log.Fatal(http.ListenAndServe(":9000", router))
 }

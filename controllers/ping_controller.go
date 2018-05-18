@@ -3,9 +3,9 @@ package controllers
 import (
 	"net/http"
 	"os"
-	"channelManager/api"
+	"channelManager.sattler.io/api"
 	"encoding/json"
-	"channelManager/helpers"
+	"channelManager.sattler.io/helpers"
 )
 
 
